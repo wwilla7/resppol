@@ -17,6 +17,8 @@ This module should convert a mol2 file int a Molecule object and expose all nece
 
 import logging as log
 import numpy as np
+import pickle
+
 try:
 	from openeye import oechem
 except:
@@ -38,12 +40,12 @@ except:
 
 
 # Initialize units
+import pint
 from pint import UnitRegistry
-
 ureg = UnitRegistry()
 Q_ = ureg.Quantity
 ureg.define('bohr = 0.52917721067 * angstrom')
-
+pint.set_application_registry(ureg)
 # =============================================================================================
 # GLOBAL PARAMETERS
 # =============================================================================================
@@ -119,7 +121,8 @@ class TrainingSet():
     It consist of multiple molecule instances and combines the optimization matrices and vectors across multiple molecules.
     """
 
-    def __init__(self, mode='q', scaleparameters=None, scf_scaleparameters=None, SCF=False, thole=False, tf=False, FF='resppol/data/test_data/BCCPOL.offxml'):
+    def __init__(self, mode='q', scaleparameters=None, scf_scaleparameters=None, SCF=False, checkpoint_path=None,
+                 thole=False, tf=False, FF='resppol/data/test_data/BCCPOL.offxml'):
         """
         Initilize the class and sets the following parameters:
 
@@ -145,6 +148,7 @@ class TrainingSet():
         self.Y_BCC = 0.0
         self._FF = FF
         self.tf = tf
+        self.checkpoint_path = checkpoint_path
         # Label the atoms and bonds using a offxml file
         forcefield = ForceField(os.path.join(ROOT_DIR_PATH, FF))
 
@@ -161,6 +165,7 @@ class TrainingSet():
 
         self.bccs_old = np.zeros(self._nbccs)
         self.alphas_old = np.zeros(self._nalpha)
+
 
     def load_from_file(self,txtfile):
         """
@@ -185,12 +190,6 @@ class TrainingSet():
         """
         self.molecules.append(Molecule(datei, position=self.number_of_lines_in_X, trainingset=self))
         self.number_of_lines_in_X += self.molecules[-1]._lines_in_X
-
-
-
-
-
-
 
 
     def build_matrix_A(self):
@@ -267,7 +266,6 @@ class TrainingSet():
 
     @property
     def intramolecular_polarization_rst(self):
-
         intramolecular_polarization_rst = []
         first_occurrence_of_parameter = {}
         for molecule in self.molecules:
@@ -289,16 +287,15 @@ class TrainingSet():
                 self.optimize_charges_alpha_step()
             converged = True
             for molecule in self.molecules:
-                molecule.step +=1
-                if not all(abs(molecule.q - molecule.q_old) <criteria) or not all(abs(molecule.alpha - molecule.alpha_old) <criteria) :
+                molecule.step += 1
+                if not all(abs(molecule.q - molecule.q_old) < criteria) or not all(abs(molecule.alpha - molecule.alpha_old) <criteria) :
                     converged = False
                 molecule.q_old = molecule.q
                 # print(molecule.q)
                 # print(molecule.alpha)
-                molecule.alpha_old =molecule.alpha
+                molecule.alpha_old = molecule.alpha
             log.debug(f"Finished updating optimization step: {molecule.step}. \n")
-
-
+            self.step = molecule.step
 
     def optimize_charges_alpha_step(self):
         self.build_matrix_X()
@@ -310,6 +307,8 @@ class TrainingSet():
             molecule.q_alpha = q_alpha_tmp[:len(molecule.X)]
             q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
             molecule.update_q_alpha()
+        if self.checkpoint_path is not None:
+            TrainingSet.save_checkpoint(self.checkpoint_path, self)
 
     def optimize_charges_alpha_step_tf(self, device_name="/device:GPU:0"):
         self.build_matrix_X()
@@ -323,8 +322,10 @@ class TrainingSet():
             molecule.q_alpha = q_alpha_tmp[:len(molecule.X)]
             q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
             molecule.update_q_alpha()
+        if self.checkpoint_path is not None:
+            TrainingSet.save_checkpoint(self.checkpoint_path, self)
 
-    def optimize_bcc_alpha(self,criteria = 10E-5):
+    def optimize_bcc_alpha(self, criteria = 10E-5):
         converged = False
         while converged == False:
             self.optimize_bcc_alpha_step()
@@ -337,7 +338,6 @@ class TrainingSet():
             else:
                 self.alphas_old = self.alphas
                 self.bccs_old = self.bccs
-
 
     def optimize_bcc_alpha_step(self):
         self.build_matrix_X_BCC()
@@ -354,8 +354,6 @@ class TrainingSet():
         self.alphas = self.bcc_alpha[self._nbccs:]
         for molecule in self.molecules:
             molecule.update_bcc(self.bccs, self.alphas)
-
-
 
     def optimize_charges(self, device_name="/device:GPU:0"):
         self.build_matrix_A()
@@ -374,6 +372,46 @@ class TrainingSet():
             q_tmp = q_tmp[len(molecule.A):]
             molecule.update_q()
 
+    @staticmethod
+    def save_checkpoint(file_path, object):
+        """
+        staticmethod for saving object in pickle file format, in case of unexpected stop.
+
+        Parameters:
+        ----------------
+        file_path: string
+        object: potentially `TrainingSet`
+
+        Return:
+        -----------------
+        None
+        """
+
+        filehandler = open(file_path, "wb")
+        pickle.dump(object, filehandler)
+
+    @staticmethod
+    def load_checkpoint(file_path):
+        """
+        staticmethod for loading unfinished TrainingSet, and resuming the calculations.
+
+        Parameters:
+        -----------------
+        file_path: string
+
+        Return:
+        -----------------
+        object
+
+        Example:
+        # Resumeing co-optimization
+        trainingset_data = resppol.resppol.TrainingSet.load_checkpoint(file_path)
+        trainingset_data.optimize_charges_alpha()
+
+        """
+        file_path = open(file_path, "rb")
+        data = pickle.load(file_path)
+        return data
 
 # =============================================================================================
 # Molecule
