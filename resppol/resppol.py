@@ -28,6 +28,15 @@ except:
 	print("Could not import openforcefield")
 from scipy.spatial import distance
 import os
+
+import resppol.external as rt
+
+try:
+    import tensorflow as tf
+except:
+    print("Could not import TensorFlow, use Numpy instead.")
+
+
 # Initialize units
 from pint import UnitRegistry
 
@@ -110,7 +119,7 @@ class TrainingSet():
     It consist of multiple molecule instances and combines the optimization matrices and vectors across multiple molecules.
     """
 
-    def __init__(self, mode='q', scaleparameters=None, scf_scaleparameters=None, SCF=False, thole=False, FF='resppol/data/test_data/BCCPOL.offxml'):
+    def __init__(self, mode='q', scaleparameters=None, scf_scaleparameters=None, SCF=False, thole=False, tf=False, FF='resppol/data/test_data/BCCPOL.offxml'):
         """
         Initilize the class and sets the following parameters:
 
@@ -135,6 +144,7 @@ class TrainingSet():
         self.X_BCC = 0.0
         self.Y_BCC = 0.0
         self._FF = FF
+        self.tf = tf
         # Label the atoms and bonds using a offxml file
         forcefield = ForceField(os.path.join(ROOT_DIR_PATH, FF))
 
@@ -270,19 +280,23 @@ class TrainingSet():
                         [first_occurrence_of_parameter[atom._parameter_id], molecule._position_in_A + atom._id + molecule._lines_in_A])
         return intramolecular_polarization_rst
 
-    def optimize_charges_alpha(self,criteria = 10E-5):
+    def optimize_charges_alpha(self, criteria = 10E-5):
         converged = False
         while converged == False:
-            self.optimize_charges_alpha_step()
+            if self.tf:
+                self.optimize_charges_alpha_step_tf()
+            else:
+                self.optimize_charges_alpha_step()
             converged = True
             for molecule in self.molecules:
                 molecule.step +=1
                 if not all(abs(molecule.q - molecule.q_old) <criteria) or not all(abs(molecule.alpha - molecule.alpha_old) <criteria) :
                     converged = False
                 molecule.q_old = molecule.q
-                print(molecule.q)
-                print(molecule.alpha)
+                # print(molecule.q)
+                # print(molecule.alpha)
                 molecule.alpha_old =molecule.alpha
+            log.debug(f"Finished updating optimization step: {molecule.step}. \n")
 
 
 
@@ -290,6 +304,19 @@ class TrainingSet():
         self.build_matrix_X()
         self.build_vector_Y()
         self.q_alpha = np.linalg.solve(self.X, self.Y)
+        # Update the charges of the molecules below
+        q_alpha_tmp = self.q_alpha
+        for molecule in self.molecules:
+            molecule.q_alpha = q_alpha_tmp[:len(molecule.X)]
+            q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
+            molecule.update_q_alpha()
+
+    def optimize_charges_alpha_step_tf(self, device_name="/device:GPU:0"):
+        self.build_matrix_X()
+        self.build_vector_Y()
+        self.X = rt.build_tensor(self.X)
+        self.Y = rt.build_tensor(self.Y.reshape(self.X.shape[0], 1))
+        self.q_alpha = rt.tensor_solver(self.X, self.Y, device_name)
         # Update the charges of the molecules below
         q_alpha_tmp = self.q_alpha
         for molecule in self.molecules:
@@ -369,6 +396,7 @@ class Molecule:
         self.Y = 0.0
         self._name = datei.split('/')[-1].strip(".mol2")
         self._trainingset = trainingset
+        self._tf = self._trainingset.tf
 
         # Number of optimization steps
         self.step = 0
@@ -781,6 +809,7 @@ class Conformer:
         self._molecule = molecule
         self.q_alpha = self._molecule.q_alpha
         self._lines_in_A = self._molecule._lines_in_A
+        self._tf = self._molecule._tf
 
         # Initiliaze Electric field vectors
         self.e_field_at_atom = np.zeros((3, self.natoms))
@@ -1405,7 +1434,12 @@ class ESPGRID:
         :return:
         """
         alpha = self._conformer.q_alpha[self._conformer._lines_in_A:self._conformer._lines_in_A + 3*self._conformer.natoms]
-        alpha[np.where(alpha == 0.0)] += 10E-10
+        if self._conformer._tf:
+            tf_idx = tf.zeros(len(alpha), dtype=tf.float32)
+            tf_mat = tf.constant(alpha, dtype=tf.float32)
+            alpha = tf.where(tf_idx == 0, -tf.fill([len(alpha), ], -10E-10), tf_mat)
+        else:
+            alpha[np.where(alpha == 0.0)] += 10E-10
 
         # Load permanent charges for BCC method
         # For all other methods this is set to 0.0 STILL HAVE to implment

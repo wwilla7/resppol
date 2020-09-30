@@ -1,4 +1,4 @@
-name: test
+name: resppol-test
 channels:
   - openeye
   - rdkit
