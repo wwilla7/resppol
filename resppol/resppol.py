@@ -266,7 +266,6 @@ class TrainingSet():
 
     @property
     def intramolecular_polarization_rst(self):
-
         intramolecular_polarization_rst = []
         first_occurrence_of_parameter = {}
         for molecule in self.molecules:
@@ -288,17 +287,15 @@ class TrainingSet():
                 self.optimize_charges_alpha_step()
             converged = True
             for molecule in self.molecules:
-                molecule.step +=1
-                if not all(abs(molecule.q - molecule.q_old) <criteria) or not all(abs(molecule.alpha - molecule.alpha_old) <criteria) :
+                molecule.step += 1
+                if not all(abs(molecule.q - molecule.q_old) < criteria) or not all(abs(molecule.alpha - molecule.alpha_old) <criteria) :
                     converged = False
                 molecule.q_old = molecule.q
                 # print(molecule.q)
                 # print(molecule.alpha)
-                molecule.alpha_old =molecule.alpha
+                molecule.alpha_old = molecule.alpha
             log.debug(f"Finished updating optimization step: {molecule.step}. \n")
             self.step = molecule.step
-
-
 
     def optimize_charges_alpha_step(self):
         self.build_matrix_X()
@@ -310,9 +307,8 @@ class TrainingSet():
             molecule.q_alpha = q_alpha_tmp[:len(molecule.X)]
             q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
             molecule.update_q_alpha()
-        if self.checkpoint_path != None:
+        if self.checkpoint_path is not None:
             TrainingSet.save_checkpoint(self.checkpoint_path, self)
-
 
     def optimize_charges_alpha_step_tf(self, device_name="/device:GPU:0"):
         self.build_matrix_X()
@@ -326,7 +322,7 @@ class TrainingSet():
             molecule.q_alpha = q_alpha_tmp[:len(molecule.X)]
             q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
             molecule.update_q_alpha()
-        if self.checkpoint_path != None:
+        if self.checkpoint_path is not None:
             TrainingSet.save_checkpoint(self.checkpoint_path, self)
 
     def optimize_bcc_alpha(self, criteria = 10E-5):
@@ -358,8 +354,6 @@ class TrainingSet():
         self.alphas = self.bcc_alpha[self._nbccs:]
         for molecule in self.molecules:
             molecule.update_bcc(self.bccs, self.alphas)
-
-
 
     def optimize_charges(self, device_name="/device:GPU:0"):
         self.build_matrix_A()
@@ -411,7 +405,7 @@ class TrainingSet():
 
         Example:
         # Resumeing co-optimization
-        trainingset_data = TrainingSet.load_checkpoint(file_path)
+        trainingset_data = resppol.resppol.TrainingSet.load_checkpoint(file_path)
         trainingset_data.optimize_charges_alpha()
 
         """
