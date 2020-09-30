@@ -38,5 +38,6 @@ setup(
 
     # Manual control if final package is compressible or not, set False to prevent the .egg from being made
     # zip_safe=False,
-    extras_require = {"TensorFlow-support": "tensorflow-gpu"},
+    extras_require = {"TF-support": "tensorflow-gpu"}, # Required for faster matrices solutions with GPUs
+
 )
