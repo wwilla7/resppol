@@ -380,11 +380,41 @@ class TrainingSet():
 
     @staticmethod
     def save_checkpoint(file_path, object):
+        """
+        staticmethod for saving object in pickle file format, in case of unexpected stop.
+
+        Parameters:
+        ----------------
+        file_path: string
+        object: potentially `TrainingSet`
+
+        Return:
+        -----------------
+        None
+        """
+
         filehandler = open(file_path, "wb")
         pickle.dump(object, filehandler)
 
     @staticmethod
     def load_checkpoint(file_path):
+        """
+        staticmethod for loading unfinished TrainingSet, and resuming the calculations.
+
+        Parameters:
+        -----------------
+        file_path: string
+
+        Return:
+        -----------------
+        object
+
+        Example:
+        # Resumeing co-optimization
+        trainingset_data = TrainingSet.load_checkpoint(file_path)
+        trainingset_data.optimize_charges_alpha()
+
+        """
         file_path = open(file_path, "rb")
         data = pickle.load(file_path)
         return data
