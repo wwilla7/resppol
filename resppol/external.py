@@ -1,8 +1,8 @@
 # !/usr/bin/env python
 
-import numpy as np
 import logging as log
 import time
+
 try:
     import tensorflow as tf
 except:
@@ -22,4 +22,3 @@ def tensor_solver(tensor_1, tensor_2, device_name="/device:GPU:0", name=None):
 		finish = time.perf_counter()
 		log.debug(f"Solving matrix with TF took {(finish-start)*1000:0.2f} ms.")
 		return results_reshape
-

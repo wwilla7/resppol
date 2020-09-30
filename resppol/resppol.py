@@ -17,6 +17,7 @@ This module should convert a mol2 file int a Molecule object and expose all nece
 
 import logging as log
 import numpy as np
+
 try:
 	from openeye import oechem
 except:
@@ -38,12 +39,12 @@ except:
 
 
 # Initialize units
+# import pint
 from pint import UnitRegistry
-
 ureg = UnitRegistry()
 Q_ = ureg.Quantity
 ureg.define('bohr = 0.52917721067 * angstrom')
-
+# pint.set_application_registry(ureg)
 # =============================================================================================
 # GLOBAL PARAMETERS
 # =============================================================================================
@@ -119,7 +120,8 @@ class TrainingSet():
     It consist of multiple molecule instances and combines the optimization matrices and vectors across multiple molecules.
     """
 
-    def __init__(self, mode='q', scaleparameters=None, scf_scaleparameters=None, SCF=False, thole=False, tf=False, FF='resppol/data/test_data/BCCPOL.offxml'):
+    def __init__(self, mode='q', scaleparameters=None, scf_scaleparameters=None, SCF=False, save_path=None,
+                 thole=False, tf=False, FF='resppol/data/test_data/BCCPOL.offxml'):
         """
         Initilize the class and sets the following parameters:
 
@@ -145,6 +147,7 @@ class TrainingSet():
         self.Y_BCC = 0.0
         self._FF = FF
         self.tf = tf
+        self.save_path = save_path
         # Label the atoms and bonds using a offxml file
         forcefield = ForceField(os.path.join(ROOT_DIR_PATH, FF))
 
@@ -161,6 +164,13 @@ class TrainingSet():
 
         self.bccs_old = np.zeros(self._nbccs)
         self.alphas_old = np.zeros(self._nalpha)
+        TrainingSet.define_init()
+
+    @staticmethod
+    def define_init():
+        ureg = UnitRegistry()
+        ureg.define('bohr = 0.52917721067 * angstrom')
+        # return ureg
 
     def load_from_file(self,txtfile):
         """
@@ -297,6 +307,7 @@ class TrainingSet():
                 # print(molecule.alpha)
                 molecule.alpha_old =molecule.alpha
             log.debug(f"Finished updating optimization step: {molecule.step}. \n")
+            self.step = molecule.step
 
 
 
@@ -310,6 +321,9 @@ class TrainingSet():
             molecule.q_alpha = q_alpha_tmp[:len(molecule.X)]
             q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
             molecule.update_q_alpha()
+        if self.save_path != None:
+            rt.save_checkpoint(self.save_path, self)
+
 
     def optimize_charges_alpha_step_tf(self, device_name="/device:GPU:0"):
         self.build_matrix_X()
@@ -323,8 +337,10 @@ class TrainingSet():
             molecule.q_alpha = q_alpha_tmp[:len(molecule.X)]
             q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
             molecule.update_q_alpha()
+        # if self.save_path != None:
+        #     rt.save_checkpoint(self.save_path, self)
 
-    def optimize_bcc_alpha(self,criteria = 10E-5):
+    def optimize_bcc_alpha(self, criteria = 10E-5):
         converged = False
         while converged == False:
             self.optimize_bcc_alpha_step()
