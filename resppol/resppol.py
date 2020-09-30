@@ -357,10 +357,15 @@ class TrainingSet():
 
 
 
-    def optimize_charges(self):
+    def optimize_charges(self, device_name="/device:GPU:0"):
         self.build_matrix_A()
         self.build_vector_B()
-        self.q = Q_(np.linalg.solve(self.A, self.B), 'elementary_charge')
+        if self.tf:
+            self.A= rt.build_tensor(self.A)
+            self.B = rt.build_tensor(self.B.reshape(self.A.shape[0], 1))
+            self.q = Q_(rt.tensor_solver(self.A, self.B, device_name),'elementary_charge')
+        else:
+            self.q = Q_(np.linalg.solve(self.A, self.B), 'elementary_charge')
 
         # Update the charges of the molecules below
         q_tmp = self.q
