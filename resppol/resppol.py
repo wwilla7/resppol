@@ -308,7 +308,8 @@ class TrainingSet():
             q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
             molecule.update_q_alpha()
         if self.checkpoint_path is not None:
-            TrainingSet.save_checkpoint(self.checkpoint_path, self)
+            if molecule.step % 100 == 0:
+                TrainingSet.save_checkpoint(self.checkpoint_path, self)
 
     def optimize_charges_alpha_step_tf(self, device_name="/device:GPU:0"):
         self.build_matrix_X()
@@ -323,7 +324,8 @@ class TrainingSet():
             q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
             molecule.update_q_alpha()
         if self.checkpoint_path is not None:
-            TrainingSet.save_checkpoint(self.checkpoint_path, self)
+            if molecule.step % 100 == 0:
+                TrainingSet.save_checkpoint(self.checkpoint_path, self)
 
     def optimize_bcc_alpha(self, criteria = 10E-5):
         converged = False
