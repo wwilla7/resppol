@@ -166,7 +166,6 @@ class TrainingSet():
         self.bccs_old = np.zeros(self._nbccs)
         self.alphas_old = np.zeros(self._nalpha)
 
-
     def load_from_file(self,txtfile):
         """
         Allows to build a TrainingSet instance from an text file.
@@ -414,6 +413,37 @@ class TrainingSet():
         file_path = open(file_path, "rb")
         data = pickle.load(file_path)
         return data
+
+    @property
+    def alpha_new(self):
+        """
+        - Group polarizability parameters for the whole training set into a dictionary.
+        - This attribute should only be accessed after the completion of
+          charge and polarizability co-optimization.
+        --------------
+
+        Returns:
+        --------------
+        parameter_dict = {"ParameterId_AtomicId": polarizability parameter}
+
+
+        """
+        parameter_dict = {}
+        for molecule in self.molecules:
+            R = molecule.R
+            if self.tf:
+                alpha = molecule.alpha.numpy()
+                alpha = alpha.reshape(3, molecule._natoms)
+            else:
+                alpha = molecule.alpha.reshape(3, molecule._natoms)
+            for i in range(molecule._natoms):
+                for idx, j in enumerate(R[i]):
+                    if j != 0:
+                        parameter_dict[f"{molecule._atoms[i]._parameter_id}_{molecule._atoms[i]._atomic_number}"] = alpha[0][i]
+
+        return parameter_dict
+
+
 
 # =============================================================================================
 # Molecule
