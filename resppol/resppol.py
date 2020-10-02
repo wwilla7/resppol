@@ -31,9 +31,8 @@ except:
 from scipy.spatial import distance
 import os
 
-import resppol.external as rt
-
 try:
+    import resppol.external as rt
     import tensorflow as tf
 except:
     print("Could not import TensorFlow, use Numpy instead.")
@@ -122,7 +121,7 @@ class TrainingSet():
     """
 
     def __init__(self, mode='q', scaleparameters=None, scf_scaleparameters=None, SCF=False, checkpoint_path=None,
-                 thole=False, tf=False, FF='resppol/data/test_data/BCCPOL.offxml'):
+                 chk_steps=100, thole=False, tf=False, FF='resppol/data/test_data/BCCPOL.offxml'):
         """
         Initilize the class and sets the following parameters:
 
@@ -149,6 +148,7 @@ class TrainingSet():
         self._FF = FF
         self.tf = tf
         self.checkpoint_path = checkpoint_path
+        self.checkpoint_step = chk_steps
         # Label the atoms and bonds using a offxml file
         forcefield = ForceField(os.path.join(ROOT_DIR_PATH, FF))
 
@@ -307,7 +307,7 @@ class TrainingSet():
             q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
             molecule.update_q_alpha()
         if self.checkpoint_path is not None:
-            if molecule.step % 100 == 0:
+            if molecule.step % self.checkpoint_step == 0:
                 TrainingSet.save_checkpoint(self.checkpoint_path, self)
 
     def optimize_charges_alpha_step_tf(self, device_name="/device:GPU:0"):
@@ -323,7 +323,7 @@ class TrainingSet():
             q_alpha_tmp = q_alpha_tmp[len(molecule.X):]
             molecule.update_q_alpha()
         if self.checkpoint_path is not None:
-            if molecule.step % 100 == 0:
+            if molecule.step % self.checkpoint_step == 0:
                 TrainingSet.save_checkpoint(self.checkpoint_path, self)
 
     def optimize_bcc_alpha(self, criteria = 10E-5):

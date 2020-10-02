@@ -105,3 +105,8 @@ ENV/
 resppol/tmp
 MyNotes.ipynb
 .idea/
+
+
+# unfinished input
+resppol/examples/start
+*start*
