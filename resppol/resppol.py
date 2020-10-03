@@ -131,7 +131,7 @@ class TrainingSet():
         :param SCF:
         :param thole:
         """
-        self.molecules = list()
+        self.molecules = []
         self.B = np.zeros(0)
         self.A = np.zeros((0, 0))
         self.q = 0.0
@@ -173,13 +173,18 @@ class TrainingSet():
 
         :return:
         """
-        f = open(txtfile)
-        lines = f.readlines()
-        f.close()
-        for i, line in enumerate(lines):
-            mol2file = line.split()[1]
-            # noinspection PyTypeChecker
-            self.add_molecule(Molecule(mol2file))
+        with open(txtfile, "r") as f:
+            for line in f:
+                mol2file = line.split()[1]
+                self.add_molecule(Molecule(mol2file))
+
+        # f = open(txtfile)
+        # lines = f.readlines()
+        # f.close()
+        # for i, line in enumerate(lines):
+        #     mol2file = line.split()[1]
+        #     # noinspection PyTypeChecker
+        #     self.add_molecule(Molecule(mol2file))
 
     def add_molecule(self, datei):
         """
@@ -209,7 +214,7 @@ class TrainingSet():
             self.B = np.concatenate((self.B, molecule.B))
 
     def build_matrix_X(self):
-        self.X = np.zeros((0,0))
+        self.X = np.zeros((0, 0))
         """
         Builds the matrix X of the underlying molecules and combines them.
 
@@ -224,7 +229,7 @@ class TrainingSet():
         X12 = np.zeros((len(self.X),len(self.intramolecular_polarization_rst)))
         X22 =  np.zeros((len(self.intramolecular_polarization_rst),len(self.intramolecular_polarization_rst)))
 
-        self.X = np.concatenate((np.concatenate((self.X, X12), axis=1), np.concatenate((X12.transpose(),X22), axis =1)), axis=0)
+        self.X = np.concatenate((np.concatenate((self.X, X12), axis=1), np.concatenate((X12.transpose(), X22), axis=1)), axis=0)
         for i,atoms in enumerate(self.intramolecular_polarization_rst):
             self.X[self.number_of_lines_in_X + i][atoms[0]] = self.X[atoms[0]][self.number_of_lines_in_X + i] = 1
             self.X[self.number_of_lines_in_X + i][atoms[1]] = self.X[atoms[1]][self.number_of_lines_in_X + i] = -1
@@ -326,7 +331,7 @@ class TrainingSet():
             if molecule.step % self.checkpoint_step == 0:
                 TrainingSet.save_checkpoint(self.checkpoint_path, self)
 
-    def optimize_bcc_alpha(self, criteria = 10E-5):
+    def optimize_bcc_alpha(self, criteria=10E-5):
         converged = False
         while converged == False:
             self.optimize_bcc_alpha_step()
@@ -374,7 +379,7 @@ class TrainingSet():
             molecule.update_q()
 
     @staticmethod
-    def save_checkpoint(file_path, object):
+    def save_checkpoint(file_path, obj):
         """
         staticmethod for saving object in pickle file format, in case of unexpected stop.
 
@@ -389,7 +394,7 @@ class TrainingSet():
         """
 
         filehandler = open(file_path, "wb")
-        pickle.dump(object, filehandler)
+        pickle.dump(obj, filehandler)
 
     @staticmethod
     def load_checkpoint(file_path):
@@ -410,8 +415,8 @@ class TrainingSet():
         trainingset_data.optimize_charges_alpha()
 
         """
-        file_path = open(file_path, "rb")
-        data = pickle.load(file_path)
+        filehandler = open(file_path, "rb")
+        data = pickle.load(filehandler)
         return data
 
     @property
@@ -537,8 +542,8 @@ class Molecule:
         self._charge = 0
 
         # Initialize the bonds, atoms
-        self._bonds = list()
-        self._atoms = list()
+        self._bonds = []
+        self._atoms = []
 
         # Define all BCC bonds
         for i, properties in enumerate(molecule_parameter_list[0]['Bonds'].items()):
@@ -550,7 +555,7 @@ class Molecule:
         # Define all atomtypes for polarization
         for i, properties in enumerate(molecule_parameter_list[0]['vdW'].items()):
             atom_index, parameter = properties
-            self.add_atom(i, atom_index[0], parameter.id, atomic_number = AtomicNumbers[atom_index[0]])
+            self.add_atom(i, atom_index[0], parameter.id, atomic_number=AtomicNumbers[atom_index[0]])
 
         self._natoms = len(self._atoms)
 
@@ -599,7 +604,7 @@ class Molecule:
         :param parameter_id:
         :return:
         """
-        self._atoms.append(Atom(index, atom_index, parameter_id, atomic_number= atomic_number))
+        self._atoms.append(Atom(index, atom_index, parameter_id, atomic_number=atomic_number))
 
     def add_conformer_from_mol2(self, mol2file):
         """
